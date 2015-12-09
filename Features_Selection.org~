@@ -1,0 +1,72 @@
+-*- Mode: org; mode: auto-fill; fill-column: 76 -*-
+
+#+SEQ_TODO: TODO(t) STARTED(s!) SOMEDAY(S!) WAIT(w@/!) DELEGATE(e@/!) | DONE(d!/!)  CANCELED(c@)
+#+STARTUP: overview
+#+STARTUP: lognotestate
+#+TAGS: noexport(n) export(e)
+#+PROPERTY: Effort_ALL 0 0:10 0:20 0:30 1:00 2:00 4:00 6:00 8:00
+
+#+TITLE:     Features_Selection
+#+AUTHOR:    Leandro Fernandes
+#+EMAIL:     leandro_h_fernandes@cargill.com
+#+DATE:      <Tue 08 Dec 2015 10:06:44 PM PST>
+
+#+LANGUAGE:  en
+#+TEXT:      GTD Agenda
+#+OPTIONS:   H:3 num:t toc:t \n:nil @:t ::t |:t ^:t -:t f:t *:t TeX:t LaTeX:nil skip:t d:nil tags:not-in-toc
+#+INFOJS_OPT: view:overview toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
+#+LINK_UP:
+#+LINK_HOME:
+#+PROPERTY: Effort_ALL 0:05 0:15 0:30 0:45 1:00 1:30 2:00 3:00 4:00 5:00
+#+TAGS: DATA(d) MODELLING(m) FORECASTING(f) WRITTING(w)
+#+COLUMNS: %40ITEM(Task) %TODO %17Effort(Estimated Effort){:} %CLOCKSUM %TAGS
+
+# Local Variables:
+# org-export-html-style: "   <style type=\"text/css\">
+#    a:link, a:visited {font-style: italic; text-decoration: none; color: black; }
+#    a:active {font-style: italic; texit-decoration: none; color: blue; } </style>
+#   </style>"
+# End:
+
+#+CREATOR: Emacs 24.3.1 (Org mode 8.2.5h)
+#+DESCRIPTION:
+#+EXCLUDE_TAGS: noexport
+#+KEYWORDS:
+#+LANGUAGE: en
+#+SELECT_TAGS: export
+
+
+* Introducao
+* Data
+* Preprocessing
+* Analises
+* Forecast e Monitoramento
+* Conclusao
+* Files
+#+BEGIN_FSTREE: . :relative-links t :non-recursive nil
+
+#+END_FSTREE
+
+* Automate system						   :noexport:
+
+  1. Export to docx
+     1. Change headers structure and create Dev Code n Analysis headers
+     2. Set tags :noexport: to exclude subtree Dev Code n Analysis in the output
+     3. org-html-export-as-html
+     4. Edit (delete) xml lines (first 3 lines)
+
+         #+BEGIN_SRC
+         <?xml version="1.0" encoding="utf-8"?>
+         <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+         "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+         #+END_SRC
+
+     5. Save as html
+     6. Open it in MS word
+  2. Export R script (tangle)
+     1. C-c C-v t (org-tangle)
+
+* Dev Code n Analysis						   :noexport:
+#+BEGIN: clocktable :maxlevel 3 :scope subtree :link
+#+CAPTION:
+#+END:
