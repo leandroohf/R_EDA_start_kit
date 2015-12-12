@@ -13,6 +13,7 @@ library(ascii, quietly = TRUE )
 library(leaps, quietly = TRUE )
 ##library(corrplot, quietly = TRUE )
 library(reshape2, quietly = TRUE )
+library(randomForest, quietly = TRUE )
 
 require(xgboost, quietly = TRUE )
 
@@ -396,10 +397,6 @@ XGBoostExplorer_GetModelsParameterSpaces <- function(xgb.train,
     dround <- round(max.nround/number.of.models)
     nround <- min.nround
     nrounds <- seq(1,number.of.models,by=1)*dround
-
-    print(number.of.models)
-    print(length(nrounds))
-    
     
     colsamples <- seq(0.30,1.0,by=0.30)
     ncolsample <- length(colsamples)
@@ -477,4 +474,89 @@ XGBoostExplorer_BuildTestErrorGridDashBoard <- function(test.error.grid,
                         colour="red", linetype = "dashed")
     }
     print(p)
+}
+
+## ----------------------- [ Random Forest ] ----------------------- ##
+
+RandomForestExplorer <- function(train.db, test.db, rf.formula,
+                                 number.of.models){
+
+    stopifnot(number.of.models > 10)
+    stopifnot(names(train.db) %in% names(test.db))
+    stopifnot(ncol(train.db) %in% ncol(test.db))
+    
+    max.ntree <- 100
+
+    error.list <- RandomForestExplorer_GetModelsErrorCrossValidation(rf.formula,
+                                                                     train.db,
+                                                                     test.db,
+                                                                     max.ntree,
+                                                                     number.of.models)
+
+    train.rmse <- error.list[[1]]
+    test.rmse  <- error.list[[2]]
+    model.corr <- error.list[[3]]
+    
+    list(
+        PlotRelativeImportance = function(){
+            RandomForestExplorer_PlotRelativeImportance(train.db,
+                                                        response.var,
+                                                        xgb.model)
+        },
+        GetRandomForestDashBoard = function(bayes.error=-1){
+            
+            XGBoostExplorer_BuildXGBoostDashBoard(model.corr,
+                                                  train.rmse,
+                                                  test.rmse,
+                                                  bayes.error)
+        },
+        GetTestErrorGridDashBoard = function(bayes.error=-1){
+
+            XGBoostExplorer_BuildTestErrorGridDashBoard(test.error.grid,
+                                                        bayes.error)
+            
+        }
+    )
+}
+
+RandomForestExplorer_GetModelsErrorCrossValidation <- function(rf.formula,
+                                                               train.db,
+                                                               test.db,
+                                                               max.ntree,
+                                                               number.of.models){
+    
+    dtree <- round(max.ntree/number.of.models)
+    ntrees <- seq(1,number.of.models,by=1)*dtree
+    
+    test.rmse = rep(NA, number.of.models)
+    train.rmse = rep(NA, number.of.models)
+    model.corr = rep(NA, number.of.models)
+    lhs.formula <- lhs(rf.formula)
+
+    for (i in 1:number.of.models) {
+        ## cat("model: ",i,"\n")
+
+        nt <- ntrees[i]
+        mi <- randomForest( rf.formula, data=train.db, ntree=nt)
+
+        predi <- predict(mi, train.db)
+        resi <- predi - train.db[,as.character(lhs.formula)]
+        train.rmse[i] <- sqrt(mean(resi^2))
+        model.corr[i] <- cor(train.db[,as.character(lhs.formula)],
+                             predi)^2
+        
+        predi <- predict(mi, test.db)
+        resi <- predi - test.db[,as.character(lhs.formula)]
+        test.rmse[i] <- sqrt(mean(resi^2))
+    }
+    return(list(train.rmse,test.rmse,model.corr))
+}
+
+RandomForestExplorer_BuildRandomForestDashBoard <- function(model.corr,
+                                                  train.rmse,
+                                                  test.rmse,
+                                                  bayes.error = -1){
+    BuildCorrelDashoard(model.corr)
+    BuildErrorsDashoard(train.rmse, test.rmse,bayes.error)
+    
 }
