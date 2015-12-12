@@ -1,0 +1,322 @@
+##* ****************************************************************
+##  Programer[s]: Leandro Fernandes
+##  Company/Institution:  
+##  email: leandroohf@gmail.com
+##  Program: feature_selection_lib                                    
+##  Commentary: Lib with function to help with features selections    
+##  Date: November 25, 2015
+##* ****************************************************************
+
+library(formula.tools, quietly = TRUE )
+library(ggplot2, quietly = TRUE )
+library(ascii, quietly = TRUE )
+library(leaps, quietly = TRUE )
+
+require(xgboost, quietly = TRUE )
+
+## --------------------- [ RegSuset Explorer ] --------------------- ##
+RegsubsetExplorer <- function(train.db,test.db,reg.formula,nvmax,
+                              nbest=1,really.big=FALSE,force.in=NULL){
+
+    ##cat("reg.formula:\n")
+    ##print(reg.formula)
+    reg.dev <- regsubsets(reg.formula,
+                          data = train.db, nvmax = nvmax,
+                          method="forward",
+                          nbest=nbest,really.big=really.big,force.in=force.in)
+
+    reg.summary <- summary(reg.dev)
+
+    number.of.models <- length(reg.summary$adjr2)
+
+    cat("number of models: ", number.of.models,"\n")
+
+    ## lhs.formula <- lhs(reg.formula)
+    
+    train.size <- nrow(train.db)
+    test.size  <- nrow(test.db)
+
+    error.list <-
+        RegsubsetExplorer_GetModelsErrorCrossValidation(reg.dev,reg.formula,
+                                                        train.db, test.db)
+    
+    train.rmse <- error.list[[1]]
+    test.rmse <- error.list[[2]]
+    model.adjr2 <- reg.summary$adjr2
+
+    list(
+        GetRegsubsetDashBoard = function(bayes.error=-1){
+            print(bayes.error)
+            print(test.rmse)
+            print(train.rmse)
+            RegsubsetExplorer_BuildRegsubsetDashboard(model.adjr2,
+                                                      train.rmse,
+                                                      test.rmse,
+                                                      bayes.error)
+
+        },
+        GetRegsubsetSummaryReport = function(){
+            cat("Print Report: NOT Implemented YET\n")
+            return(reg.summary)
+        },
+        GetModelRegSubset = function(model.index, verbose=FALSE){
+            lm.model <- RegsubsetExplorer_GetModelRegSubset(model.index,
+                                                            reg.dev,
+                                                            train.db,
+                                                            reg.formula,
+                                                            nvmax,
+                                                            nbest,
+                                                            really.big,
+                                                            force.in,
+                                                            verbose=verbose)
+
+            return(lm.model)
+        },
+        GetModelFormula = function(model.index){
+            model.formula <- RegsubsetExplorer_GetModelFormula(reg.dev,reg.formula,model.index)
+            return(model.formula)
+        }
+    )
+}
+
+RegsubsetExplorer_GetModelsErrorCrossValidation <- function(reg.dev, reg.formula,train.db, test.db){
+    ## Auxiliar function
+    ## Model Selection by Cross-Validation
+    
+    lhs.formula <- lhs(reg.formula)
+    
+    reg.summary <- summary(reg.dev)
+    number.of.models <- length(reg.summary$adjr2)
+
+    test.rmse = rep(NA, number.of.models)
+    train.rmse = rep(NA, number.of.models)
+    for (i in 1:number.of.models) {
+        ## cat("model: ",i,"\n")
+        mi <- RegsubsetExplorer_GetModelRegSubset(i,reg.dev,train.db,
+                                                  reg.formula = reg.formula,
+                                                  nvmax,nbest,
+                                                  really.big,
+                                                  force.in)
+
+        train.rmse[i] <- sqrt(mean(mi$residuals^2))
+        predi <- predict(mi, test.db)
+        resi <- predi - test.db[,as.character(lhs.formula)]
+        test.rmse[i] <- sqrt(mean(resi^2))
+    }
+    return(list(train.rmse,test.rmse))
+}
+
+RegsubsetExplorer_BuildRegsubsetDashboard <- function(model.adjr2,
+                                                      train.rmse,
+                                                      test.rmse,
+                                                      bayes.error = -1){
+    ## plotings
+    model.index <- seq(1:length(model.adjr2))
+    data.view <- data.frame(model.index=model.index,
+                            adjr2=model.adjr2)
+
+    p1 <- ggplot(data=data.view,aes(x=model.index,y=adjr2,label=model.index))
+    p1 <- p1 + geom_point(size=4) + labs(title="adjr2")
+    p1 <- p1 + geom_text(hjust=-0.2, vjust=-0.2,angle = 15,size=6,
+                         show_guide=FALSE)
+
+    print(p1)
+
+    ymax <- max(append(train.rmse,test.rmse))*1.10
+    ymin <- min(append(train.rmse,test.rmse))*0.90
+
+    data.view2 <- data.frame(model.index=model.index,
+                             train.rmse=train.rmse,
+                             test.rmse=test.rmse)
+
+    p4 <- ggplot(data=data.view2,aes(x=model.index,y=train.rmse,label=model.index))
+
+    p4 <- p4 + geom_point(aes(color="Train"),size=3,show_guide=FALSE)
+    p4 <- p4 + geom_line(size=1,linetype="dotdash",show_guide=FALSE) + ylim(ymin,ymax)
+    p4 <- p4 + geom_text(hjust=-0.2, vjust=-0.2,angle = 15,size=6,
+                         show_guide=FALSE)
+
+    p4 <- p4 + geom_point(aes(x=model.index,y=test.rmse,color="Test"),size=3)
+    p4 <- p4 + geom_line(aes(x=model.index,y=test.rmse,color="Test"),size=1,linetype="dotdash")
+    p4 <- p4 + geom_text(aes(x=model.index,y=test.rmse,label=model.index),hjust=-0.2, vjust=-0.2,
+                         angle = 15,size=6)
+
+    p4 <- p4 + scale_colour_manual(name='',
+                                   values=c('Train'='black', 'Test'='blue'))
+
+    p4 <- p4 + labs(xlab="model.index",ylab="RMSE",title="RMSE: Train vs test")
+
+    if( bayes.error > 0){
+        print(bayes.error)
+        p4 <- p4 + geom_abline(intercept=bayes.error,slope = 0.0)
+    }
+    
+    print(p4)
+}
+
+RegsubsetExplorer_GetModelFormula <- function(reg.dev,reg.formula,model.k){
+
+    ck <- coef(reg.dev, model.k)
+    ck.names <- names(ck)
+    n <- length(ck.names)
+
+    ## cat("ck\n")
+    ## print(ck)
+    ## Building rhs formula
+    lhs.formula <- lhs(reg.formula)
+    ## cat("lhs\n")
+    ## print(lhs.formula)
+    rhs.formula <- paste(ck.names[2:n],collapse=" + ")
+    ## cat("rhs\n")
+    ## print(rhs.formula)
+    model.formula <- paste(lhs.formula," ~ ",rhs.formula)
+
+    ## cat("model formula\n")
+    ## print(model.formula)
+
+    return(model.formula)
+}
+
+RegsubsetExplorer_GetModelRegSubset <- function(model.k,reg.dev,
+                                                train.db,reg.formula,
+                                                nvmax, nbest,
+                                                really.big=FALSE,
+                                                force.in=NULL,
+                                                verbose=FALSE){
+
+
+    reg.summary <- summary(reg.dev)
+    models.number <- length(reg.summary$adjr2)
+    n=seq(1:models.number)
+
+    ## cat("model.number: ", models.number)
+
+
+    ## Get coef of desired model
+
+    ck <- coef(reg.dev, model.k)
+    coef.k <- data.frame(names=names(ck),
+                         coefs=as.numeric(coef(reg.dev, model.k)))
+
+
+    ## Building rhs formula
+
+    model.formula <- RegsubsetExplorer_GetModelFormula(reg.dev,reg.formula,model.k)
+
+    names.list <- paste(names(coef(reg.dev,1)),collapse=" + ")
+    for(k in 2:models.number){
+        names.aux <- paste(names(coef(reg.dev,k)),collapse=" + ")
+        names.list <- append(names.list,names.aux)
+    }
+
+    model.table <- data.frame(n=n,
+                              adjr2=reg.summary$adjr2,
+                              coef.names=names.list)
+
+    if(verbose == TRUE){
+        ## Print first 7 model in model tables
+        cat("Print Model: ", model.k,"\n")
+        print(ascii(coef.k,include.rownames=FALSE,digits=4),type = "org")
+
+        ## Print first 7 model in model tables
+        cat("Print Model: ", model.k," neighbors\n")
+        start.model <- ifelse(model.k >1 ,
+                              model.k - 1,
+                              model.k)
+
+        end.model <- ifelse(model.k == reg.dev$nvmax ,
+                            model.k,
+                            model.k + 1)
+
+
+        print(ascii(model.table[ seq(model.k -1,model.k+1,by=1)
+                               ,1:2],include.rownames=FALSE,digits=4),type = "org")
+
+        cat("Printing model formula\n")
+        print(model.formula)
+    }
+
+    lm.model <- lm(model.formula,data=train.db)
+    
+    return(lm.model)
+}
+
+## --------------------- [ XGBoost Explorer ] --------------------- ##
+
+XGBoostExplorer <- function(train.db, test.db, response.var, number.of.models,param.list){
+
+    stopifnot(number.of.models > 10)
+    stopifnot(names(train.db) %in% names(test.db))
+    stopifnot(ncol(train.db) %in% ncol(test.db))
+    stopifnot(c("objective","eta","subsample","colsample_bytree") %in% names(
+                                                                        param.list))
+
+    train.label  <- as.matrix(train.db[,response.var])
+    train.matrix <- as.matrix(train.db[,names(train.db) != response.var])
+    xgb.train    <- xgb.DMatrix(data = train.matrix , label=train.label)
+
+
+    ##print(names(train.db))
+    ##print(response.var)
+    ##print(dim(train.matrix))
+    
+    test.label  <- as.matrix(test.db[,response.var])
+    test.matrix <- as.matrix(test.db[, names(test.db) != response.var])
+    xgb.test    <- xgb.DMatrix(data = test.matrix, label=test.label)
+    
+    xgb.model  <- XGBoostExplorer_TrainModel(xgb.train, xgb.test,
+                                             param.list,
+                                             number.of.models)
+    
+    print(paste("best: index:",xgb.model$bestInd, "train-metric:",xgb.model$bestScore))
+    
+    list(
+        PlotRealtiveImportance = function(){
+            XGBoostExplorer_PlotRelativeImportance(xgb.train,
+                                                   xgb.model)
+        }
+    )
+}
+
+XGBoostExplorer_GetModelsErrorCrossValidation <- function(xgb.train,
+                                                          xgb.test,
+                                                          param.list,
+                                                          number.of.models){
+    for (k in seq(10:number.of.models)) {
+        
+        xgb.model.k <- XGBoostExplorer_TrainModel(xgb.train,xgb.test,
+                                                  param.list, k)
+
+
+        pred <- predict(xgb.model, xgb.train)
+        train.rmse <- sqrt( mean( (train.label - pred)^2 ) )
+        
+        pred <- predict(xgb.model, xgb.val)
+        test.rmse <- sqrt( mean( (test.label - pred)^2 ) )
+        
+        }
+
+    return(list(train.rmse,test.rmse))
+}
+
+XGBoostExplorer_TrainModel <- function(xgb.train,xgb.test, param.list, nround){
+
+    watchlist <- list(val=xgb.test,train=xgb.train)
+    xgb.model <- xgboost::xgb.train(param=param.list,
+                                    data = xgb.train, nthread = 3,
+                                    nround = nround,
+                                    watchlist=watchlist,## eval_metric = "rmse",
+                                    verbose=0,
+                                    early.stop.round=17,
+                                    maximize = FALSE)
+    
+    return(xgb.model)
+}
+
+XGBoostExplorer_PlotRelativeImportance <- function(xgb.train,xgb.model){
+    
+    importance_matrix <- xgb.importance(xgb.train$data@Dimnames[[2]],
+                                        model = xgb.model)
+    
+    xgb.plot.importance(importance_matrix)
+}

@@ -9,7 +9,7 @@
 #+TITLE:     Features_Selection
 #+AUTHOR:    Leandro Fernandes
 #+EMAIL:     leandro_h_fernandes@cargill.com
-#+DATE:      <nil2015-12-08 Tue>
+#+DATE:      <2015-12-09 Wed>
 
 #+LANGUAGE:  en
 #+TEXT:      GTD Agenda
@@ -36,6 +36,51 @@
 #+SELECT_TAGS: export
 
 * Introducao
+    
+* Analysis
+  
+  #+begin_src R
+    source('libs/features_selection.R')
+    source('libs/data_simulator.R')
+
+    data.sim    <- DataSimulator(200)
+    reg.formula <- data.sim$GetVarsFormula()
+    reg.formula <- formula(paste0(reg.formula," + I(x1^2) + x2:x3"))
+
+    db       <- data.sim$GetData()
+    train.db <- db[seq(1,150,by=1),]
+    test.db  <- db[seq(151,200,by=1),]
+    bayes.error = data.sim$GetSigma()
+
+
+    nvmax <- 15
+    reg.exp <- RegsubsetExplorer(train.db,test.db,reg.formula,nvmax,
+                                 nbest=1,really.big=FALSE,force.in=NULL)
+
+    reg.exp$GetRegsubsetDashBoard(bayes.error)
+
+    param <- list("objective" = "reg:linear",
+                  "eta" = 0.1,
+                  ##"min_child_weight" = 5,
+                  "subsample" = 0.80,
+                  "colsample_bytree" = 0.80,
+                  "scale_pos_weight" = 1.00,
+                  "silent" = 1,
+                  ##"booster" = "gbtree",
+                  "max_depth" = 7,
+                  "seed" = 19)
+
+    number.of.models <- 15
+    xgb.exp <- XGBoostExplorer(train.db, test.db, "y", number.of.models,
+                               param)
+
+    xgb.exp$PlotRelativeImportance()
+    xgb.exp$GetXGBoostDashBoard(bayes.error)
+    xgb.exp$GetTestErrorGridDashBoard(bayes.error)
+
+
+  #+end_src
+
 * Data
 ** Setup
 
