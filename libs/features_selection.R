@@ -11,18 +11,120 @@ library(formula.tools, quietly = TRUE )
 library(ggplot2, quietly = TRUE )
 library(ascii, quietly = TRUE )
 library(leaps, quietly = TRUE )
-##library(corrplot, quietly = TRUE )
+library(corrplot, quietly = TRUE )
 library(reshape2, quietly = TRUE )
 library(randomForest, quietly = TRUE )
+library(xgboost, quietly = TRUE )
+library(gridExtra, quietly = TRUE )
 
-require(xgboost, quietly = TRUE )
+## ------------------- [ Correlation Explorer ] ------------------- ##
+
+DataExplorer <- function(train.db, response.var){
+
+    corr.matrix <- cor(train.db)    
+    
+    list(
+        GetCorrDashBoard = function(){
+            corrplot.mixed(corr.matrix, lower = "circle",
+                           upper = "number")
+        },
+        GetLinePainelDashBoard = function(cols.painel = FALSE){
+            DataExplorer_GetLinePainelDashBoard(train.db,response.var,
+                                                   cols.painel=cols.painel)
+        },
+
+        GetScatterPainelDashBoard = function(cols.painel = FALSE){
+            DataExplorer_GetScatterPainelDashBoard(train.db,response.var,
+                                                   cols.painel=cols.painel)
+        },
+        GetHistogramDashBoard = function(cols.painel = FALSE,
+                                         number.col = 3){
+            DataExplorer_GetHistDashBoard(train.db,response.var,
+                                          cols.painel=cols.painel,
+                                          number.col = number.col)
+        },
+        GetAutocorrelationDashBoard = function(){
+            y <- train.db[, response.var]
+            a <- acf(train.db$y, plot = FALSE)
+            plot(a, main = paste0("auto corr: ", response.var))
+        }
+    )
+}
+
+DataExplorer_GetLinePainelDashBoard <- function(train.db, response.var,
+                                                   cols.painel = FALSE,
+                                                   number.col = 3){
+
+    if(cols.painel == FALSE){
+        cols.painel <- names(train.db)
+    }
+    
+    data.view <- train.db[,cols.painel]
+    data.view$id <- seq(1:nrow(train.db))
+    
+    data.view <- melt(data.view, id.vars = "id",
+                      measure.vars = cols.painel)
+       
+    p <- ggplot(data=data.view,aes(x=id,y=value))
+    p <- p + geom_line() + facet_wrap( ~ variable ,
+                                      scale = "free",
+                                      ncol = number.col )
+    print(p)
+}
+
+DataExplorer_GetScatterPainelDashBoard <- function(train.db, response.var,
+                                            cols.painel = FALSE,
+                                            number.col = 3){
+
+    if(cols.painel == FALSE){
+        cols.painel <- names(train.db)
+        cols.painel <- cols.painel[cols.painel != response.var] 
+    }
+
+    ## Assure response var is not in cols.painel
+    stopifnot( !(response.var %in% cols.painel) )
+
+    data.view <- train.db[,c(response.var, cols.painel)]
+    names(data.view)[1] <- "y"
+    data.view <- melt(data.view, id.vars = "y",
+                      measure.vars = cols.painel)
+
+    p <- ggplot(data=data.view,aes(x=value,y=y))
+    p <- p + geom_point() + facet_wrap( ~ variable ,
+                                       scale = "free_x",
+                                       ncol = number.col )
+    print(p)
+}
+
+DataExplorer_GetHistDashBoard <- function(train.db, response.var,
+                                          cols.painel = NULL,
+                                          number.col = 3){
+
+    if(cols.painel == FALSE){
+        cols.painel <- names(train.db)        
+    }
+
+    data.view <- melt(train.db[,cols.painel], measure.vars = cols.painel)
+    
+    p <- ggplot(data=data.view,aes(x=value))
+    p <- p + geom_histogram() + facet_wrap( ~ variable,
+                                           scale = "free_x",
+                                           ncol = number.col )
+    print(p)
+    
+}
+
+DataExplorer_GetBoxplotDashBoard <- function(train.db, response.var,
+                                            cols.painel = FALSE){
+    
+    cat("NOT Implemented YET:\n")
+    
+}
 
 ## --------------------- [ RegSuset Explorer ] --------------------- ##
 RegsubsetExplorer <- function(train.db,test.db,reg.formula,nvmax,
                               nbest=1,really.big=FALSE,force.in=NULL){
 
-    ##cat("reg.formula:\n")
-    ##print(reg.formula)
     reg.dev <- regsubsets(reg.formula,
                           data = train.db, nvmax = nvmax,
                           method="forward",
@@ -33,14 +135,12 @@ RegsubsetExplorer <- function(train.db,test.db,reg.formula,nvmax,
     number.of.models <- length(reg.summary$adjr2)
 
     cat("number of models: ", number.of.models,"\n")
-
-    ## lhs.formula <- lhs(reg.formula)
     
     train.size <- nrow(train.db)
     test.size  <- nrow(test.db)
 
     error.list <-
-        RegsubsetExplorer_GetModelsErrorCrossValidation(reg.dev,reg.formula,
+        RegsubsetExplorer_ComputeModelsError(reg.dev,reg.formula,
                                                         train.db, test.db)
     
     train.rmse <- error.list[[1]]
@@ -79,9 +179,7 @@ RegsubsetExplorer <- function(train.db,test.db,reg.formula,nvmax,
     )
 }
 
-RegsubsetExplorer_GetModelsErrorCrossValidation <- function(reg.dev, reg.formula,train.db, test.db){
-    ## Auxiliar function
-    ## Model Selection by Cross-Validation
+RegsubsetExplorer_ComputeModelsError <- function(reg.dev, reg.formula,train.db, test.db){
     
     lhs.formula <- lhs(reg.formula)
     
@@ -110,8 +208,7 @@ RegsubsetExplorer_BuildRegsubsetDashboard <- function(model.adjr2,
                                                       train.rmse,
                                                       test.rmse,
                                                       bayes.error = -1){
-    ## plotings
-
+    
     BuildCorrelDashoard(model.adjr2)
     BuildErrorsDashoard(train.rmse, test.rmse,bayes.error)
     
@@ -175,19 +272,11 @@ RegsubsetExplorer_GetModelFormula <- function(reg.dev,reg.formula,model.k){
     ck.names <- names(ck)
     n <- length(ck.names)
 
-    ## cat("ck\n")
-    ## print(ck)
     ## Building rhs formula
     lhs.formula <- lhs(reg.formula)
-    ## cat("lhs\n")
-    ## print(lhs.formula)
     rhs.formula <- paste(ck.names[2:n],collapse=" + ")
-    ## cat("rhs\n")
-    ## print(rhs.formula)
-    model.formula <- paste(lhs.formula," ~ ",rhs.formula)
 
-    ## cat("model formula\n")
-    ## print(model.formula)
+    model.formula <- paste(lhs.formula," ~ ",rhs.formula)
 
     return(model.formula)
 }
@@ -204,17 +293,13 @@ RegsubsetExplorer_GetModelRegSubset <- function(model.k,reg.dev,
     models.number <- length(reg.summary$adjr2)
     n=seq(1:models.number)
 
-    ## cat("model.number: ", models.number)
-
     ## Get coef of desired model
-
     ck <- coef(reg.dev, model.k)
     coef.k <- data.frame(names=names(ck),
                          coefs=as.numeric(coef(reg.dev, model.k)))
 
 
     ## Building rhs formula
-
     model.formula <- RegsubsetExplorer_GetModelFormula(reg.dev,reg.formula,model.k)
 
     names.list <- paste(names(coef(reg.dev,1)),collapse=" + ")
@@ -271,12 +356,7 @@ XGBoostExplorer <- function(train.db, test.db, response.var, number.of.models,pa
     train.label  <- as.matrix(train.db[,response.var])
     train.matrix <- as.matrix(train.db[,names(train.db) != response.var])
     xgb.train    <- xgb.DMatrix(data = train.matrix , label=train.label)
-    
-
-    ##print(names(train.db))
-    ##print(response.var)
-    ##print(dim(train.matrix))
-    
+        
     test.label  <- as.matrix(test.db[,response.var])
     test.matrix <- as.matrix(test.db[, names(test.db) != response.var])
     xgb.test    <- xgb.DMatrix(data = test.matrix, label=test.label)
@@ -287,7 +367,7 @@ XGBoostExplorer <- function(train.db, test.db, response.var, number.of.models,pa
                                              max.nround)
     
     cat("\nComputing model selection \n")
-    error.list <- XGBoostExplorer_GetModelsErrorCrossValidation(xgb.train,
+    error.list <- XGBoostExplorer_ComputeModelsError(xgb.train,
                                                                 train.label,
                                                                 xgb.test,
                                                                 test.label,
@@ -323,7 +403,6 @@ XGBoostExplorer <- function(train.db, test.db, response.var, number.of.models,pa
                                                   bayes.error)
         },
         GetTestErrorGridDashBoard = function(bayes.error=-1){
-
             XGBoostExplorer_BuildTestErrorGridDashBoard(test.error.grid,
                                                         bayes.error)
             
@@ -333,27 +412,20 @@ XGBoostExplorer <- function(train.db, test.db, response.var, number.of.models,pa
 
 XGBoostExplorer_TrainModel <- function(xgb.train,xgb.test, param.list, nround){
 
-    ##watchlist <- list(val=xgb.test,train=xgb.train)
     xgb.model <- xgboost::xgb.train(param=param.list,
                                     data = xgb.train, nthread = 3,
                                     nround = nround,
-                                    ##watchlist=watchlist,## eval_metric = "rmse",
                                     verbose=0,
-                                    #early.stop.round=17,
                                     maximize = FALSE)
     
     return(xgb.model)
 }
 
-XGBoostExplorer_GetModelsErrorCrossValidation <- function(xgb.train,
-                                                          train.label,
-                                                          xgb.test,
-                                                          test.label,
-                                                          param.list,
-                                                          min.nround,
-                                                          max.nround,
-                                                          number.of.models){
-
+XGBoostExplorer_ComputeModelsError <- function(xgb.train, train.label,
+                                               xgb.test, test.label,
+                                               param.list, min.nround,
+                                               max.nround,
+                                               number.of.models){
 
     stopifnot(min.nround < max.nround)
     
@@ -365,7 +437,6 @@ XGBoostExplorer_GetModelsErrorCrossValidation <- function(xgb.train,
     nround <- min.nround
     for (k in seq(1,number.of.models,by=1)){
 
-        ##cat("model.k: ", k, "\n")
         xgb.model.k <- XGBoostExplorer_TrainModel(xgb.train,xgb.test,
                                                   param.list, nround)
         
@@ -410,17 +481,11 @@ XGBoostExplorer_GetModelsParameterSpaces <- function(xgb.train,
             nround <- nrounds[k]
             xgb.model.k <- XGBoostExplorer_TrainModel(xgb.train,xgb.test,
                                                       param.list, nround)
-        
-            ## pred <- predict(xgb.model.k, xgb.train)
-            ## train.rmse[k] <- sqrt( mean( (train.label - pred)^2 ) )
-            ## model.corr[k] <- cor(pred,train.label)^2
-            
+                    
             pred <- predict(xgb.model.k, xgb.test)
             test.rmse[k,c] <- sqrt( mean( (test.label - pred)^2 ) )
             
-            ## Number of tree in the classifier
         }
-        ##nround <- nround + dround
     }
 
     print(head(test.rmse))
@@ -480,19 +545,22 @@ XGBoostExplorer_BuildTestErrorGridDashBoard <- function(test.error.grid,
 
 RandomForestExplorer <- function(train.db, test.db, rf.formula,
                                  number.of.models){
-
+    
     stopifnot(number.of.models > 10)
     stopifnot(names(train.db) %in% names(test.db))
     stopifnot(ncol(train.db) %in% ncol(test.db))
     
-    max.ntree <- 100
-
-    error.list <- RandomForestExplorer_GetModelsErrorCrossValidation(rf.formula,
+    max.ntree <- 2000
+    
+    rf.model <- randomForest( rf.formula, data=train.db,
+                             ntree=max.ntree , importance=TRUE)
+    
+    error.list <- RandomForestExplorer_ComputeModelsError(rf.formula,
                                                                      train.db,
                                                                      test.db,
                                                                      max.ntree,
                                                                      number.of.models)
-
+    
     train.rmse <- error.list[[1]]
     test.rmse  <- error.list[[2]]
     model.corr <- error.list[[3]]
@@ -501,7 +569,7 @@ RandomForestExplorer <- function(train.db, test.db, rf.formula,
         PlotRelativeImportance = function(){
             RandomForestExplorer_PlotRelativeImportance(train.db,
                                                         response.var,
-                                                        xgb.model)
+                                                        rf.model)
         },
         GetRandomForestDashBoard = function(bayes.error=-1){
             
@@ -511,7 +579,7 @@ RandomForestExplorer <- function(train.db, test.db, rf.formula,
                                                   bayes.error)
         },
         GetTestErrorGridDashBoard = function(bayes.error=-1){
-
+            
             XGBoostExplorer_BuildTestErrorGridDashBoard(test.error.grid,
                                                         bayes.error)
             
@@ -519,11 +587,10 @@ RandomForestExplorer <- function(train.db, test.db, rf.formula,
     )
 }
 
-RandomForestExplorer_GetModelsErrorCrossValidation <- function(rf.formula,
-                                                               train.db,
-                                                               test.db,
-                                                               max.ntree,
-                                                               number.of.models){
+RandomForestExplorer_ComputeModelsError <- function(rf.formula,
+                                                    train.db, test.db,
+                                                    max.ntree,
+                                                    number.of.models){
     
     dtree <- round(max.ntree/number.of.models)
     ntrees <- seq(1,number.of.models,by=1)*dtree
@@ -537,6 +604,7 @@ RandomForestExplorer_GetModelsErrorCrossValidation <- function(rf.formula,
         ## cat("model: ",i,"\n")
 
         nt <- ntrees[i]
+        cat("nt: ", nt, "\n")
         mi <- randomForest( rf.formula, data=train.db, ntree=nt)
 
         predi <- predict(mi, train.db)
@@ -559,4 +627,22 @@ RandomForestExplorer_BuildRandomForestDashBoard <- function(model.corr,
     BuildCorrelDashoard(model.corr)
     BuildErrorsDashoard(train.rmse, test.rmse,bayes.error)
     
+}
+
+RandomForestExplorer_PlotRelativeImportance <- function(train.db,
+                                                        response.var,
+                                                        rf.model){
+    
+    importance_var <- importance(rf.model)
+    importance_var <- data.frame(feature=row.names(importance_var),
+                                 importance=importance_var[,1])
+
+    p <- ggplot(importance_var, aes(x=reorder(feature, importance), y=importance))
+    p <- p + geom_bar(stat="identity", fill="#3F5D7D") +
+        coord_flip() + theme_light(base_size=20) + xlab("") +
+        ylab("Importance") +
+        ggtitle("Random Forest Feature Importance\n") +
+        theme(plot.title=element_text(size=18))
+
+    print(p)
 }

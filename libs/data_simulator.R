@@ -7,12 +7,12 @@
 ##  Date: November 25, 2015
 ##* ****************************************************************
 
-DataSimulator <- function(data.size){
+DataSimulator <- function(data.size, seed.number= 1023, bayes.error = 2.00){
     
-    data.sim <- DataSimulator_BuildDataModel(data.size)
+    data.sim <- DataSimulator_BuildDataModel(data.size,seed.number)
 
     ## Adding Bayes error
-    sigma <- 2.0
+    sigma <- bayes.error
     e = rnorm(data.size,0.0,sigma)
     data.sim$y <- data.sim$y + e 
     
@@ -20,8 +20,6 @@ DataSimulator <- function(data.size){
     x5 <- -1.2*data.sim$x4 + 1.0 + rnorm(data.size,0.0,0.5)
     
     data.sim$x5 <- x5
-    ## data.sim$x6 <- data.sim$x1^2
-    ## data.sim$x7 <- data.sim$x2*data.sim$x3
     
     ## Append Noise Variables
     number.of.noise.vars <- 10
@@ -44,15 +42,15 @@ DataSimulator <- function(data.size){
             return(formula(formula.str))
         },
         GetSigma = function(){
-            ## cat("sigma: ", sigma, "\n")
-            ## cat("rmse: ", sqrt(mean(e^2)), "\n")
             return(sigma)
         }
     )
 }
 
-DataSimulator_BuildDataModel <- function(data.size){
+DataSimulator_BuildDataModel <- function(data.size, seed.number= 1023){
 
+    set.seed(seed.number)
+    
     ## Create important vars
     x1 <- rnorm(data.size,5.0,2.5)
     x2 <- rnorm(data.size,2.5,1.0)
@@ -77,9 +75,7 @@ DataSimulator_AppendNoiseVarsInDataFrame <- function(data.sim,
 
     data.size <- nrow(data.sim)
     first.noise.var <- ncol(data.sim)
-    ##cat("first: ", first.noise.var, "\n")
     last.noise.var <- first.noise.var + number.of.noise.vars - 1
-    ##cat("last: ", last.noise.var, "\n")
     vars.seq <- seq(first.noise.var,last.noise.var,by=1)
 
     cat("vars.seq:\n")
@@ -96,11 +92,6 @@ DataSimulator_AppendNoiseVarsInDataFrame <- function(data.sim,
         noise.sd <- (rnorm(1,3,2))^2
         noise.mean <- rnorm(1,5,7)
         noise.x <- rnorm(data.size,noise.mean,noise.sd)
-
-        ## cat("k; ",k,"\n")
-        ## cat("noise.var: ", noise.vars[k], "\n" )
-        ## cat("noise.mean: ", noise.mean, "\n" )
-        ## cat("noise.sd: ", noise.sd , "\n")
         
         data.sim <- cbind(data.sim, noise.x )
         data.sim.names <- append(data.sim.names, noise.vars[k])
