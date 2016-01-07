@@ -17,8 +17,7 @@ DataSimulator <- function(data.size, seed.number= 1023, bayes.error = 2.00){
     data.sim$y <- data.sim$y + e 
     
     ## Create trouble var (multicolinearity)
-    x5 <- -1.2*data.sim$x4 + 1.0 + rnorm(data.size,0.0,0.5)
-    
+    x5 <- -1.2*data.sim$x4 + 1.0 + rnorm(data.size,0.0,0.5)    
     data.sim$x5 <- x5
     
     ## Append Noise Variables
