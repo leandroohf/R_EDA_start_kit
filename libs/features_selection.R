@@ -17,7 +17,8 @@ library(randomForest, quietly = TRUE )
 library(xgboost, quietly = TRUE )
 library(gridExtra, quietly = TRUE )
 
-## ------------------- [ Correlation Explorer ] ------------------- ##
+
+## ----------------------- [ Data Explorer ] ----------------------- ##
 
 DataExplorer <- function(train.db, response.var){
 
@@ -516,7 +517,6 @@ XGBoostExplorer_BuildXGBoostDashBoard <- function(model.corr,
     BuildErrorsDashoard(train.rmse, test.rmse,bayes.error)
     
 }
-
 
 XGBoostExplorer_BuildTestErrorGridDashBoard <- function(test.error.grid,
                                                         bayes.error = -1){
