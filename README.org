@@ -36,28 +36,31 @@
 #+SELECT_TAGS: export
 
 * Introduction
-  
-  We started developing EDA (Exploratory Data analysis) library to help us
-  data scientist project. We built routines to plot histograms, scatterplots
-  and correlation matrix of target variables. Moreover we implemented a
-  procedure to automatic select variables to speed up models development. We
-  strong believe that the best EDA tool is the ability of the data scientist
-  to make good questions about the data and also we know that these methods
-  can end by adding garbage and noise to the analysis. But we think that if
-  you use it with parsimony that might be useful. Moreover we compared some
-  model selections methodology.
 
+  Finding the most important predictor variables that explain the major part
+  of variance of the response variable is very important to build good
+  models. We started the development of EDA (Exploratory Data analysis)
+  library to help us data scientist project. We built routines to plot
+  histograms, scatterplots and correlation matrix of target
+  variables. Moreover we implemented a procedure to automatic select
+  variables to speed up models development. We strong believe that the best
+  EDA tool is the ability of the data scientist to make good questions about
+  the data and also we know that these methods can end by adding garbage and
+  noise to the analysis. But we think that if you use it with parsimony that
+  might be useful. Moreover we compared some model selections methodology.
+  
   * Stepwise
   * Relative importance
 
   Our learning objective: 
   * Start EDA library in R 
   * Compare variable investigation and selection methods 
-
-  We also perform a small simulation. The idea is to use the developed EDA
-  library to find out how close we can reach from the True Model (Simulated
-  data) and how the noise and multicollinearity can disturb the end result
-
+    
+  We made a small simulation to illustrate the use of the EDA library. The
+  idea is to use the developed EDA library to find out how close we can
+  reach from the True Model (Simulated data) and how the noise and
+  multicollinearity can disturb the end result.
+  
 * Data
 
   One of the good things about data analysis is that you can test/check your
@@ -67,7 +70,7 @@
   simulate scenario forecast.
 
   In this section, In order to test or EDA start-kit (eda library) we worked
-  with simulated data. We choose linear relationship between dependent and
+  with simulated data. We chose linear relationship between dependent and
   independent variables because it is simple and appears very often in
   business analysis. We will work with non-linear relationship in the near
   future.
@@ -98,6 +101,7 @@
     cat("Bayes error:\n")
     print(bayes.error)
 
+    # ---------------------- [ Split data in train and test ]
     offset <- round(data.size*0.70)
     db       <- data.sim$GetData()
     train.db <- db[seq(1,offset,by=1),]
@@ -175,12 +179,13 @@
  
 * Features Selection
 
-  In the code bellow we use stepwise exhaustive model selection to
-  semi-automatic choose models and model's variable. The method is described
-  in R help function (Package: regsubsets). We use these routines to build a
-  plot of both rmse and adjusted r-squared vs model complexity (number of
-  parameters for regressions). The dashed red line is the Bayes error. These
-  graphs can give you an overview of the bias variance trade-off.
+  In the code bellow we used stepwise (method = exhaustive) model selection
+  to semi-automatic choose models and their variables. The method is
+  described in R help function (Package: regsubsets). We used these routines
+  to build a plot of both rmse and adjusted r-squared vs model complexity
+  (number of parameters for regressions). The dashed red line is the Bayes
+  error. These graphs can give you an overview of the bias variance
+  trade-off.
   
   #+begin_src R :tangle main.R
     data.formula <- data.sim$GetVarsFormula()
@@ -200,9 +205,9 @@
 
   [[file:figures/reg_subset_rmse.png]]
 
-  We repeated the experiment above, but now we use xgboost to build the same
-  graphs. But now model complexity is related with the number of tree in the
-  GBM algorithm.
+  We repeated the experiment above, but now we used xgboost to build the
+  same graphs. But now model complexity is related with the number of tree
+  in the GBM algorithm.
 
   #+begin_src R :tangle main.R
     param <- list("objective" = "reg:linear",
@@ -291,12 +296,16 @@
 
   Based on the graph, this technique is missing interactions variables
   (x2:x3) and also added a noise variable as an important variable (x8).
-  
+
+  The *rmse* in test data set was smaller (quite close to Bayes error) in
+  stepwise approach than in the xgboost. One of the reasons is because
+  linear classifiers are better representations of linear relationships than
+  regression trees.
+
 * Conclusion
 
-  We started developing EDA library in R to help us investigate relationship
-  among variables in a data set. We use visualization techniques and also 2
-  different models selection approach. Those techniques have to be used with
-  parsimony, but can speed up your analysis.
-
-
+  We developed a EDA library start-kit in R to help us investigate
+  relationship among variables in a data set. We useed visualization
+  techniques and also 2 different models selection approach. Those
+  techniques have to be used with parsimony, but can speed up your analysis.
+  
