@@ -304,8 +304,9 @@
 
 * Conclusion
 
-  We developed a EDA library start-kit in R to help us investigate
-  relationship among variables in a data set. We useed visualization
-  techniques and also 2 different models selection approach. Those
-  techniques have to be used with parsimony, but can speed up your analysis.
+  We developed EDA library start-kit in R to help us investigate
+  relationship among variables in the data set. We used visualization
+  techniques and also 2 different models selection approach to help us
+  investigate relations between predictors and response variable. Those
+  techniques have to be used with parsimony, but can speed up analysis.
   
