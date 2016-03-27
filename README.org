@@ -108,13 +108,12 @@
     test.db  <- db[seq(offset + 1,data.size,by=1),]
   #+end_src
 
-  #+BEGIN_EXAMPLE
+  #+RESULTS:
   : Simulated data true model:
   : [1] "y ~ x1 + I(x1^2) + x2 + x2:x3 + x4"
   : Bayes error:
-  : [1] 2  
-  #+END_EXAMPLE
-  
+  : [1] 2
+
 * Exploratory Data
   
   EDA is a critical early step in any data analysis where the goals are to
