@@ -38,16 +38,16 @@
 * Introduction
 
   Finding the most important predictor variables that explain the major part
-  of variance of the response variable is very important to build good
-  models. We started the development of EDA (Exploratory Data analysis)
-  library to help us data scientist project. We built routines to plot
-  histograms, scatterplots and correlation matrix of target
-  variables. Moreover we implemented a procedure to automatic select
-  variables to speed up models development. We strong believe that the best
-  EDA tool is the ability of the data scientist to make good questions about
-  the data and also we know that these methods can end by adding garbage and
-  noise to the analysis. But we think that if you use it with parsimony that
-  might be useful. Moreover we compared some model selections methodology.
+  of the variance of the response variable is very important to build good
+  models. We started the development of the EDA (Exploratory Data analysis)
+  library to help us data scientist projects. We built routines to plot
+  histograms, scatterplots and correlation matrix of target variables.
+  Moreover, we implemented a procedure to automatically select variables to
+  speed up model development. We strongly believe that the best EDA tool is
+  the ability of the data scientist to make good questions about the data
+  and also we know that these methods can end by adding garbage and noise to
+  the analysis. But we think that if you use it with parsimony that might be
+  useful. Moreover we compared some model selections methodology.
   
   * Stepwise
   * Relative importance
@@ -64,16 +64,15 @@
 * Data
 
   One of the good things about data analysis is that you can test/check your
-  ideas and learn with simulated data (Of course there is a limit for
+  ideas and learn with simulated data (Of course, there is a limit for
   that). You can use simulated data to get more experience by analyzing
-  data, double check if you understood a new theory or algorithm and also
+  data, double-check if you understood a new theory or algorithm, and also
   simulate scenario forecast.
 
-  In this section, In order to test or EDA start-kit (eda library) we worked
-  with simulated data. We chose linear relationship between dependent and
+  In this section. In order to test the EDA start-kit, we worked with
+  simulated data. We chose a linear relationship between the dependent and
   independent variables because it is simple and appears very often in
-  business analysis. We will work with non-linear relationship in the near
-  future.
+  business analysis.
 
   Our data is summarized below:
   * 4 important variables 
@@ -145,9 +144,9 @@
 
   #+end_src
 
-  The line plot bellow can help us check with variables have any trend or
-  seasonality (stationary issues).
-  
+  The line plot below can help us check with variables have any trend or
+  seasonality (stationary issues)
+
   [[file:figures/eda_line_plot.png]]
 
   The histograms of variables are helpful to discover binary variables,
@@ -156,14 +155,15 @@
   
   [[file:figures/eda_histograms.png]]
 
-  The scatter plot helps us to get first insight of the variables
-  relationships. For instance it is easy to see that response variable is
-  correlated with predictor x1.
+
+  The scatter plot helps us to get the first insight into the variables
+  relationships. For instance, it is easy to see that the response variable
+  is correlated with predictor x1.
 
   [[file:figures/eda_scatterplot.png]]
 
-  Moreover the autocorrelation plot is important because can suggest the use
-  of autoregressive models.
+  Moreover, the autocorrelation plot is important because can suggest the
+  use of autoregressive models.
     
   [[file:figures/eda_autocorr.png]]
 
@@ -178,12 +178,12 @@
  
 * Features Selection
 
-  In the code bellow we used stepwise (method = exhaustive) model selection
+  n the code bellow, we used stepwise (method = exhaustive) model selection
   to semi-automatic choose models and their variables. The method is
   described in R help function (Package: regsubsets). We used these routines
   to build a plot of both rmse and adjusted r-squared vs model complexity
   (number of parameters for regressions). The dashed red line is the Bayes
-  error. These graphs can give you an overview of the bias variance
+  error. These graphs can give you an overview of the bias-variance
   trade-off.
   
   #+begin_src R :tangle main.R
@@ -204,9 +204,10 @@
 
   [[file:figures/reg_subset_rmse.png]]
 
-  We repeated the experiment above, but now we used xgboost to build the
-  same graphs. But now model complexity is related with the number of tree
-  in the GBM algorithm.
+
+  We repeated the experiment above with xgboost to build the same graphs.
+  But now, model complexity is related to the number of trees in the GBM
+  algorithm.
 
   #+begin_src R :tangle main.R
     param <- list("objective" = "reg:linear",
@@ -231,7 +232,7 @@
   [[file:figures/xgb_rmse.png]]
   
   Analyzing the graphs we should conclude that in the regression case, the
-  best model might be the number 4.
+  best model might be number 4.
   
   #+begin_src R :tangle main.R
     m4 <-reg.exp$GetModelRegSubset(4,TRUE)
@@ -277,15 +278,15 @@
   Multiple R-squared:  0.8457,	Adjusted R-squared:  0.8385 
   F-statistic: 116.5 on 4 and 85 DF,  p-value: < 2.2e-16
   #+END_EXAMPLE  
-  
-  The model is quite similar to the True Model. Only variable x4 is
-  missing. Moreover the rmse in test is close to Bayes error, however the
-  train error is below the Bayes error.
+
+  The model is quite similar to the True Model. Only variable x4 is missing.
+  Moreover, the rmse in the test is close to Bayes error, however the training
+  error is below the Bayes error. 
 
   Repeating the analysis but now using xgboost. The best model would be also
   number 4 (Model with 20 trees). Note that the rmse is almost twice the
-  Bayes error and rmse in train data set is equal to Bayes error. You can
-  plot relative importance variable with the code bellow:
+  Bayes error and rmse in the train data set is equal to Bayes error. You
+  can plot the relative importance variable with the code below:
 
   #+begin_src R :tangle main.R
     xgb.exp$PlotRelativeImportance()
@@ -293,13 +294,13 @@
 
   [[file:figures/xgb_rel_importance.png]]
 
-  Based on the graph, this technique is missing interactions variables
+  Based on the graph, this technique is missing interaction variables
   (x2:x3) and also added a noise variable as an important variable (x8).
 
-  The *rmse* in test data set was smaller (quite close to Bayes error) in
-  stepwise approach than in the xgboost. One of the reasons is because
-  linear classifiers are better representations of linear relationships than
-  regression trees.
+  The *rmse* in the test data set was smaller (quite close to Bayes error)
+  in the stepwise approach than in the xgboost. One of the reasons is
+  because linear classifiers are better representations of linear
+  relationships than regression trees.
 
 * Conclusion
 
